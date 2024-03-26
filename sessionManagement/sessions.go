@@ -19,7 +19,7 @@ func init() {
 	store = sessions.NewCookieStore([]byte("your-secret-key"))
 	store.Options = &sessions.Options{
 		Path:     "/",
-		MaxAge:   60,
+		MaxAge:   180,
 		HttpOnly: true,
 		SameSite: http.SameSiteStrictMode,
 	}
@@ -62,7 +62,7 @@ func LoginHandler(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintln(w, "Login Successful!")
 }
 
-type MiddlewareFunc func(http.Handler) http.Handler
+// type MiddlewareFunc func(http.Handler) http.Handler
 
 func SessionMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -72,7 +72,7 @@ func SessionMiddleware(next http.Handler) http.Handler {
 			return
 		}
 		if auth, ok := session.Values["authenticated"].(bool); !ok || !auth {
-			http.Error(w, "Unauthorized", http.StatusUnauthorized)
+			http.Error(w, "Unauthorized: Session expired or invalid", http.StatusUnauthorized)
 			return
 		}
 		next.ServeHTTP(w, r)

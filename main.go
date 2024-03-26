@@ -1,31 +1,38 @@
 package main
 
 import (
+	"fmt"
+	"log"
+	h "myProject/admin"
 	mw "myProject/middleware"
 	m "myProject/sessionManagement"
 	"net/http"
-
-	h "myProject/admin"
-
-	db "myProject/db"
 
 	"github.com/gorilla/mux"
 )
 
 func main() {
-	db.InitializeMySQLDB()
+	go func() {
+		if err := h.SyncCachePeriodically(); err != nil {
+			log.Printf("Error in cache sync: %v", err)
+		}
+	}()
 	r := mux.NewRouter()
-	r.HandleFunc("/login", m.LoginHandler)
-	r.HandleFunc("/logout", m.LogoutHandler)
-	r.Use(m.SessionMiddleware)
-	r.Use(mw.BasicAuthMiddleware)
-	r.HandleFunc("/add", h.AddEventHandler)
-	r.HandleFunc("/getAll", h.GetAllEventsHandler)
-	r.HandleFunc("/update", h.UpdateEventHandler)
-	r.HandleFunc("/delete", h.DeleteEventHandler)
+	r.HandleFunc("/login", m.LoginHandler).Methods("POST")
+	r.HandleFunc("/logout", m.LogoutHandler).Methods("GET")
+	r.HandleFunc("/bookTicket", h.BookTicketsHandler).Methods("POST")
 
+	adminRouter := r.PathPrefix("/admin").Subrouter()
+	adminRouter.Use(mw.CombinedMiddleware)
+
+	adminRouter.HandleFunc("/add", h.AddEventHandler).Methods("POST")
+	adminRouter.HandleFunc("/getAllUsingRedis", h.GetAllEventsHandler).Methods("GET")
+	adminRouter.HandleFunc("/get/{id}", h.GetEventByIdHandler).Methods("GET")
+	adminRouter.HandleFunc("/update/{id}", h.UpdateEventHandler).Methods("PUT")
+	adminRouter.HandleFunc("/delete/{id}", h.DeleteEventHandler).Methods("DELETE")
 	wrappedmux := mw.NewLogger(r)
 
-	http.ListenAndServe(":80", wrappedmux)
+	fmt.Println("Server is Listening on port 8080")
+	log.Fatal(http.ListenAndServe(":8080", wrappedmux))
 
 }
